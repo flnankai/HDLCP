@@ -22,6 +22,8 @@ An hdlcp_fit containing component and Cauchy p-values, rejections,
 location estimates, and data-driven nuisance summaries. Locations are the
 last row before the change. Cauchy localization selects the component with
 the smallest global p-value; exact ties use component order (fixed, then proportional).
+The log.p.value column preserves analytic tail comparisons under numerical
+underflow. Reference-bank endpoint values are flagged in diagnostics.
 }
 \description{
 Test and locate a single high-dimensional mean change

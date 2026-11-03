@@ -36,8 +36,7 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
   if (length(floor_level)!=1 || !is.finite(floor_level) || floor_level>=0) stop("floor_level must be negative.")
   m <- n-1L; kap <- (3*m-1)/m^2; t <- seq_len(m)/n; v <- t*(1-t)
   trim <- which(seq_len(m)>=lambda & seq_len(m)<=n-lambda)
-  tails <- sort(unique(c(seq_len(B)/(B+1),.01,.025,.05,.1)))
-  tails <- tails[tails>=1/(B+1) & tails<=B/(B+1)]
+  tails <- sort(unique(c((0:B)/B,.01,.025,.05,.1)))
   curves <- function(z) vapply(seq_len(ncol(z)),function(j)
     as.numeric(quantile(z[,j],1-tails,type=8)),numeric(length(tails)))
   fixed <- list()
@@ -49,19 +48,21 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
         unlist(lapply(k,function(kk)c(max(pr$sums[,kk]),max(pr$sums[trim,kk]/v[trim]))))
       },numeric(2*length(k))))
     },workers,seed))
-    beta <- uniroot(function(x) fixed_marginal_tail(x,kap)-1/p,c(1e-8,max(40,10*log(p))))$root
+    beta <- .fixed_level(1/p,kap)
     scale <- fixed_marginal_tail(beta,kap)/fixed_marginal_density(beta,kap)
-    tasks <- expand.grid(ki=seq_along(k),ti=seq_along(theta_grid))
-    banks <- .parallel(split(tasks,seq_len(nrow(tasks))),function(task) {
-      z <- tangent_bank_cpp(B,theta_grid[task$ti],k[task$ki],beta,scale,
+    tasks <- expand.grid(ti=seq_along(theta_grid),bi=seq_along(groups))
+    raw_banks <- .parallel(split(tasks,seq_len(nrow(tasks))),function(task) {
+      z <- tangent_bank_cpp(length(groups[[task$bi]]),theta_grid[task$ti],k,beta,scale,
                             beta*qlogis(t),v,trim,floor_level)
       if(any(!is.finite(z))) stop("Tangent truncation too shallow; decrease floor_level.")
-      curves(z)
+      z
     },workers,seed+1L)
+    banks <- lapply(seq_along(theta_grid),function(i)
+      curves(do.call(rbind,raw_banks[tasks$ti==i])))
     rho_grid <- seq(0,.95,.005)
     for (i in seq_along(k)) {
-      indices <- which(tasks$ki==i)
-      tang <- array(unlist(banks[indices]),c(length(tails),2,length(theta_grid)))
+      tang <- array(unlist(lapply(banks,function(z)z[,c(2*i-1,2*i),drop=FALSE])),
+        c(length(tails),2,length(theta_grid)))
       fixed[[as.character(k[i])]] <- list(anchor=curves(anchor[,c(2*i-1,2*i),drop=FALSE]),
         tangent=tang, lookup=build_fixed_cluster_lookup(k[i],p,kap,rho_grid))
     }
@@ -78,7 +79,7 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
   normal <- if(length(q)) .with_seed(seed+3L,function()matrix(rnorm(m*B),m,B)) else NULL
   structure(list(n=n,p=p,k=k,q=q,B=B,lambda=lambda,theta_grid=theta_grid,
     floor_level=floor_level,seed=seed,tails=tails,fixed=fixed,
-    lookups=lookups,normal=normal,noise=noise,version="0.1.1"),class="hdlcp_reference")
+    lookups=lookups,normal=normal,noise=noise,version="0.1.2"),class="hdlcp_reference")
 }
 
 .fixed_curve <- function(ref,k,theta,gamma) {
@@ -91,12 +92,23 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
 
 .curve_p <- function(stat,crit,tails) {
   # Generalized inverse on a linearly interpolated decreasing curve.
-  if(stat<=min(crit))return(tail(tails,1))
-  if(stat>max(crit))return(tails[1])
+  if(stat<=min(crit))return(1)
+  if(stat>max(crit))return(0)
   i <- which(stat>crit)[1]
   if(i==1)return(tails[1])
   if(crit[i-1]==crit[i])return(tails[i])
   tails[i-1]+(crit[i-1]-stat)/(crit[i-1]-crit[i])*(tails[i]-tails[i-1])
+}
+
+.critical_at <- function(alpha,crit,tails) {
+  approx(tails,crit,xout=alpha,rule=2,ties="ordered")$y
+}
+
+.reference_tail <- function(stat,maxima) mean(maxima>stat)
+
+.gumbel_log_tail <- function(z) {
+  # The error in log(tail)=-z is below double precision for z>36.
+  ifelse(z>36,-z,log(-expm1(-exp(-z))))
 }
 
 .theta <- function(ref,k,summ) {
@@ -113,7 +125,7 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
   },numeric(1)))
 }
 
-.kernel <- function(pr,summ,lookup) {
+.kernel <- function(pr,summ,lookup,need_factor=TRUE) {
   p <- pr$p; t <- seq_len(pr$n-1)/pr$n; v <- pr$v
   a <- (outer(t,t,pmin)-tcrossprod(t))/sqrt(outer(v,v))
   rho <- pmin(abs(summ$R[upper.tri(summ$R)]),1)
@@ -128,6 +140,7 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
     slope <- slope+1/p*sum(rho*gamma_prime_at(lookup,rho)-4*lookup$mu^2*rho^2)
   }
   if(omega<=0 || slope<=0)stop("Nonpositive estimated variance or intensity.")
+  if(!need_factor)return(list(omega=omega,eta=slope/omega,strong=length(rho)))
   K <- (C+t(C))/(2*omega); diag(K)<-1
   ee <- eigen(K,symmetric=TRUE)
   if(min(ee$values) < -1e-7) {

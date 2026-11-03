@@ -94,14 +94,20 @@
 #' @examples
 #' cauchy_combine(c(0.01, 0.2, 0.5))
 cauchy_combine <- function(p, weights = rep(1/length(p), length(p))) {
+  .cauchy_result(p,weights)$p.value
+}
+
+.cauchy_result <- function(p,weights=rep(1/length(p),length(p))) {
   if (!length(p) || any(!is.finite(p)) || any(p<0|p>1) || length(weights)!=length(p) ||
       any(!is.finite(weights)|weights<=0)) stop("Invalid p-values or weights.")
-  if (any(p==0)) return(0)
-  if (any(p==1)) return(1)
+  if (any(p==0)) return(list(statistic=Inf,p.value=0))
+  if (any(p==1)) return(list(statistic=-Inf,p.value=1))
   w <- weights/max(weights)
   w <- w/sum(w)
-  terms <- ifelse(p < 0.5, 1/tan(pi*p), -1/tan(pi*(1-p)))
-  z <- sum(w*terms)
-  if(z==0)return(.5)
-  if (z > 0) atan(1/z)/pi else 1-atan(-1/z)/pi
+  terms <- numeric(length(p));lo<-p<.5;hi<-p>.5
+  terms[lo] <- w[lo]/tanpi(p[lo])
+  terms[hi] <- -w[hi]/tanpi(1-p[hi])
+  z <- sum(terms)
+  pv <- if(z==0).5 else if(z>0)atan(1/z)/pi else 1-atan(-1/z)/pi
+  list(statistic=z,p.value=pv)
 }

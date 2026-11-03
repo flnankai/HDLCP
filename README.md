@@ -47,8 +47,19 @@ is used by HDLCP. Reference generation takes time; increasing `B` and decreasing
 `F1-0`, `F5-0.5`, `P0.1-0`, etc. identify component tests. `CL0` and `CL0.5`
 combine the requested component p-values with equal Cauchy weights. Their location
 is the leftmost scan maximizer of the component with the smallest **global**
-p-value. Exact p-value ties follow the supplied fixed-order list, then the
+p-value. Log p-values preserve comparisons of very small analytic Gumbel tails.
+Exact p-value ties follow the supplied fixed-order list, then the
 proportion list. A location is the **last row before the change**.
+
+Reference-bank p-values evaluate the paper's survival function directly;
+they use neither an add-one adjustment nor an interior probability floor.
+`fit$diagnostics$reference_boundary` flags numerical 0/1 values outside the
+finite reference range. These are resolution limits, not exact theoretical
+tail probabilities. Increase `B` when such tails matter. The fixed-order
+rejection follows `L > c(alpha)` directly, including equality at the threshold.
+Old reference objects from HDLCP < 0.1.2 must be rebuilt because the tangent
+sampler now preserves complete particle trajectories, including returns from
+below the numerical cutoff. Different fixed orders share these paths.
 
 The paper's Cauchy validity theorem covers a matched fixed/proportional pair;
 the four-component combination used in its numerical studies is an empirical

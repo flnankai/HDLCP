@@ -5,8 +5,12 @@ lzzl20_boot_stats_cpp <- function(X, e, n_boundary, s0, powers) {
     .Call(`_HDLCP_lzzl20_boot_stats_cpp`, X, e, n_boundary, s0, powers)
 }
 
-tangent_bank_cpp <- function(B, theta, k, beta, scale, s, v, trim, floor_level) {
-    .Call(`_HDLCP_tangent_bank_cpp`, B, theta, k, beta, scale, s, v, trim, floor_level)
+tangent_path_stats_cpp <- function(paths, mult, orders, beta, scale, v, trim) {
+    .Call(`_HDLCP_tangent_path_stats_cpp`, paths, mult, orders, beta, scale, v, trim)
+}
+
+tangent_bank_cpp <- function(B, theta, orders, beta, scale, s, v, trim, floor_level) {
+    .Call(`_HDLCP_tangent_bank_cpp`, B, theta, orders, beta, scale, s, v, trim, floor_level)
 }
 
 #' Fast Zhang--Wang--Shao (2022) q=2 and q=6 statistics

@@ -8,6 +8,8 @@
 #' location estimates, and data-driven nuisance summaries. Locations are the
 #' last row before the change. Cauchy localization selects the component with
 #' the smallest global p-value; exact ties use component order (fixed, then proportional).
+#' The log.p.value column preserves analytic tail comparisons under numerical
+#' underflow. Reference-bank endpoint values are flagged in diagnostics.
 #' @details The reference must match the dimensions of X. Neither the true
 #' covariance, change point, nor innovation law is accepted by this function.
 #' Four-component Cauchy calibration is assessed empirically in v37; the
@@ -24,13 +26,15 @@ hdlcp_test <- function(X, reference, alpha=.05, gamma=c(0,.5), keep_paths=FALSE)
   X <- .data(X,check_variance=FALSE); ref <- reference
   if(!inherits(ref,"hdlcp_reference") || nrow(X)!=ref$n || ncol(X)!=ref$p)
     stop("Reference and data dimensions do not match.")
+  if(!is.null(ref$version) && utils::compareVersion(ref$version,"0.1.2")<0)
+    stop("Rebuild this numerical reference with HDLCP >= 0.1.2; its tangent tables are incompatible.")
   if(length(alpha)!=1L || !is.finite(alpha) || alpha<=0 || alpha>=1)stop("Invalid alpha.")
   if(!length(gamma)||any(!gamma %in% c(0,.5))||anyDuplicated(gamma))stop("Invalid gamma.")
   if(any(colSums(diff(X)^2)==0)) {
     rows <- do.call(rbind,lapply(gamma,function(g) {
       names <- c(paste0("F",ref$k,"-",g)[seq_along(ref$k)],
                  paste0("P",ref$q,"-",g)[seq_along(ref$q)],paste0("CL",g))
-      data.frame(method=names,gamma=g,statistic=0,p.value=1,reject=FALSE,
+      data.frame(method=names,gamma=g,statistic=0,p.value=1,log.p.value=0,reject=FALSE,
         location=if(g==0)1L else ref$lambda,selected=names)
     }))
     return(structure(list(tests=rows,components=rows[!grepl("^CL",rows$method),],
@@ -39,10 +43,15 @@ hdlcp_test <- function(X, reference, alpha=.05, gamma=c(0,.5), keep_paths=FALSE)
   }
   pr <- .prepare(X,ref$lambda); sm <- .summaries(pr)
   rows <- list(); paths <- list(); diag <- list(s2=sm$s2,sigma2=pr$sigma2)
-  add <- function(method,g,stat,pv,loc,path) {
+  add <- function(method,g,stat,pv,loc,path,reject=pv<alpha,logpv=log(pv)) {
     rows[[length(rows)+1L]] <<- data.frame(method=method,gamma=g,statistic=stat,
-      p.value=pv,reject=pv<alpha,location=as.integer(loc),selected=method)
-    if(keep_paths) paths[[method]] <<- path
+      p.value=pv,log.p.value=logpv,reject=reject,location=as.integer(loc),selected=method)
+    if(g==0 || startsWith(method,"F"))
+      diag$reference_boundary[[method]] <<- pv==0 || pv==1
+    if(keep_paths) {
+      if(g==.5)path[-pr$trim]<-NA_real_
+      paths[[method]] <<- path
+    }
   }
   for(k in ref$k) {
     th <- .theta(ref,k,sm); diag[[paste0("theta_k",k)]] <- th
@@ -51,14 +60,15 @@ hdlcp_test <- function(X, reference, alpha=.05, gamma=c(0,.5), keep_paths=FALSE)
       loc <- allowed[which.max(path[allowed])]; stat <- path[loc]
       cv <- .fixed_curve(ref,k,th,g)
       pv <- .curve_p(stat,cv,ref$tails)
-      add(paste0("F",k,"-",g),g,stat,pv,loc,path)
+      add(paste0("F",k,"-",g),g,stat,pv,loc,path,
+          reject=stat>.critical_at(alpha,cv,ref$tails))
     }
   }
   m <- ref$n-1; kap <- (3*m-1)/m^2
   ell <- log(ref$n*ref$p); rate <- ref$p^(-.5)+ref$n^(-.5)+sqrt(ell/ref$n)+ell^2/ref$n
   for(j in seq_along(ref$q)) {
     q <- ref$q[j]; lu <- ref$lookups[[j]]; kp <- ceiling(q*ref$p)
-    ker <- .kernel(pr,sm,lu)
+    ker <- .kernel(pr,sm,lu,need_factor=0 %in% gamma)
     center <- ref$p*lu$mu+(kp-ref$p*q)*lu$uq+ref$p*kap*(lu$mu+.5*lu$uq^2*dchisq(lu$uq,1))
     U <- rowSums(pmax(pr$D^2-lu$uq,0)+q*lu$uq-lu$mu)/sqrt(ref$p)
     V <- U-mean(U)
@@ -72,24 +82,28 @@ hdlcp_test <- function(X, reference, alpha=.05, gamma=c(0,.5), keep_paths=FALSE)
       if(g==0) {
         G <- ker$factor %*% ref$normal
         maxima <- apply(pr$v*(G+skew*(G^2-1)/6),2,max)
-        pv <- (1+sum(maxima>=stat))/(ref$B+1)
+        pv <- .reference_tail(stat,maxima)
+        logpv <- log(pv)
       } else {
         z <- sqrt(2*log(pr$Tn))*stat - (2*log(pr$Tn)+.5*log(log(pr$Tn))+log(ker$eta/sqrt(pi)))
-        pv <- -expm1(-exp(-z))
+        logpv <- .gumbel_log_tail(z)
+        pv <- exp(logpv)
       }
-      add(paste0("P",q,"-",g),g,stat,pv,loc,path)
+      add(paste0("P",q,"-",g),g,stat,pv,loc,path,logpv=logpv)
     }
   }
   components <- do.call(rbind,rows)
   combined <- lapply(gamma,function(g) {
-    z <- components[components$gamma==g,,drop=FALSE]; best <- which.min(z$p.value)
-    pv <- cauchy_combine(z$p.value)
-    data.frame(method=paste0("CL",g),gamma=g,statistic=NA_real_,p.value=pv,
-      reject=pv<alpha,location=z$location[best],selected=z$method[best])
+    z <- components[components$gamma==g,,drop=FALSE]; best <- which.min(z$log.p.value)
+    cc <- .cauchy_result(z$p.value)
+    data.frame(method=paste0("CL",g),gamma=g,statistic=cc$statistic,p.value=cc$p.value,
+      log.p.value=log(cc$p.value),
+      reject=cc$p.value<alpha,location=z$location[best],selected=z$method[best])
   })
   structure(list(tests=rbind(components,do.call(rbind,combined)),components=components,
     diagnostics=diag,paths=paths,alpha=alpha,n=ref$n,p=ref$p,
-    reference=list(B=ref$B,seed=ref$seed,floor_level=ref$floor_level)),class="hdlcp_fit")
+    reference=list(B=ref$B,seed=ref$seed,floor_level=ref$floor_level,
+      tail_resolution=1/ref$B)),class="hdlcp_fit")
 }
 
 #' @export

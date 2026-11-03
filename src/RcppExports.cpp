@@ -26,22 +26,39 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// tangent_path_stats_cpp
+NumericVector tangent_path_stats_cpp(NumericMatrix paths, IntegerVector mult, IntegerVector orders, double beta, double scale, NumericVector v, IntegerVector trim);
+RcppExport SEXP _HDLCP_tangent_path_stats_cpp(SEXP pathsSEXP, SEXP multSEXP, SEXP ordersSEXP, SEXP betaSEXP, SEXP scaleSEXP, SEXP vSEXP, SEXP trimSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type paths(pathsSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type mult(multSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type orders(ordersSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type v(vSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type trim(trimSEXP);
+    rcpp_result_gen = Rcpp::wrap(tangent_path_stats_cpp(paths, mult, orders, beta, scale, v, trim));
+    return rcpp_result_gen;
+END_RCPP
+}
 // tangent_bank_cpp
-NumericMatrix tangent_bank_cpp(int B, double theta, int k, double beta, double scale, NumericVector s, NumericVector v, IntegerVector trim, double floor_level);
-RcppExport SEXP _HDLCP_tangent_bank_cpp(SEXP BSEXP, SEXP thetaSEXP, SEXP kSEXP, SEXP betaSEXP, SEXP scaleSEXP, SEXP sSEXP, SEXP vSEXP, SEXP trimSEXP, SEXP floor_levelSEXP) {
+NumericMatrix tangent_bank_cpp(int B, double theta, IntegerVector orders, double beta, double scale, NumericVector s, NumericVector v, IntegerVector trim, double floor_level);
+RcppExport SEXP _HDLCP_tangent_bank_cpp(SEXP BSEXP, SEXP thetaSEXP, SEXP ordersSEXP, SEXP betaSEXP, SEXP scaleSEXP, SEXP sSEXP, SEXP vSEXP, SEXP trimSEXP, SEXP floor_levelSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type B(BSEXP);
     Rcpp::traits::input_parameter< double >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type orders(ordersSEXP);
     Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
     Rcpp::traits::input_parameter< double >::type scale(scaleSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type s(sSEXP);
     Rcpp::traits::input_parameter< NumericVector >::type v(vSEXP);
     Rcpp::traits::input_parameter< IntegerVector >::type trim(trimSEXP);
     Rcpp::traits::input_parameter< double >::type floor_level(floor_levelSEXP);
-    rcpp_result_gen = Rcpp::wrap(tangent_bank_cpp(B, theta, k, beta, scale, s, v, trim, floor_level));
+    rcpp_result_gen = Rcpp::wrap(tangent_bank_cpp(B, theta, orders, beta, scale, s, v, trim, floor_level));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -59,6 +76,7 @@ END_RCPP
 
 static const R_CallMethodDef CallEntries[] = {
     {"_HDLCP_lzzl20_boot_stats_cpp", (DL_FUNC) &_HDLCP_lzzl20_boot_stats_cpp, 5},
+    {"_HDLCP_tangent_path_stats_cpp", (DL_FUNC) &_HDLCP_tangent_path_stats_cpp, 7},
     {"_HDLCP_tangent_bank_cpp", (DL_FUNC) &_HDLCP_tangent_bank_cpp, 9},
     {"_HDLCP_zws22_fast_stats", (DL_FUNC) &_HDLCP_zws22_fast_stats, 1},
     {NULL, NULL, 0}
