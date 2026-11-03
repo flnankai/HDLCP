@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "Please cite the HDLCP manuscript when using this software."
 type: software
 title: "HDLCP: Upper L-Statistics for High-Dimensional Change-Point Inference"
-version: 0.1.0
+version: 0.1.1
 license: GPL-3.0-or-later
 authors:
   - family-names: Yan

@@ -1,7 +1,7 @@
 Package: HDLCP
 Type: Package
 Title: Upper L-Statistics for High-Dimensional Change-Point Inference
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(person("Guowei", "Yan", role = "aut"),
     person("Dan", "Zhuang", role = "aut"),
     person("Long", "Feng", email = "flnankai@nankai.edu.cn", role = c("aut", "cre")))

@@ -98,8 +98,10 @@ cauchy_combine <- function(p, weights = rep(1/length(p), length(p))) {
       any(!is.finite(weights)|weights<=0)) stop("Invalid p-values or weights.")
   if (any(p==0)) return(0)
   if (any(p==1)) return(1)
-  w <- weights/sum(weights)
+  w <- weights/max(weights)
+  w <- w/sum(w)
   terms <- ifelse(p < 0.5, 1/tan(pi*p), -1/tan(pi*(1-p)))
   z <- sum(w*terms)
+  if(z==0)return(.5)
   if (z > 0) atan(1/z)/pi else 1-atan(-1/z)/pi
 }

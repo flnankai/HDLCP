@@ -78,7 +78,7 @@ hdlcp_calibrate <- function(n, p, k=c(1L,5L), q=c(0.1,0.9), B=2000L,
   normal <- if(length(q)) .with_seed(seed+3L,function()matrix(rnorm(m*B),m,B)) else NULL
   structure(list(n=n,p=p,k=k,q=q,B=B,lambda=lambda,theta_grid=theta_grid,
     floor_level=floor_level,seed=seed,tails=tails,fixed=fixed,
-    lookups=lookups,normal=normal,noise=noise,version="0.1.0"),class="hdlcp_reference")
+    lookups=lookups,normal=normal,noise=noise,version="0.1.1"),class="hdlcp_reference")
 }
 
 .fixed_curve <- function(ref,k,theta,gamma) {
