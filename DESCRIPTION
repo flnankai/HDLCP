@@ -1,0 +1,24 @@
+Package: HDLCP
+Type: Package
+Title: Upper L-Statistics for High-Dimensional Change-Point Inference
+Version: 0.1.0
+Authors@R: c(person("Guowei", "Yan", role = "aut"),
+    person("Dan", "Zhuang", role = "aut"),
+    person("Long", "Feng", email = "flnankai@nankai.edu.cn", role = c("aut", "cre")))
+Description: Tests and localizes a single high-dimensional mean change using
+    upper L-statistics, analytic finite-sample calibrations, Cauchy combinations,
+    and minimum-component-p localization. Implements the v37 manuscript and
+    provides seeded parallel Monte Carlo experiments for every simulation design,
+    competitor interfaces, and the SECOM application.
+License: GPL (>= 3)
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: Rcpp, stats, utils, graphics, grDevices, parallel
+LinkingTo: Rcpp, RcppArmadillo
+Suggests: DMS, CVXR (>= 1.9.0), testthat (>= 3.0.0)
+Remotes: ghwang-nk/DMS
+URL: https://github.com/flnankai/HDLCP
+BugReports: https://github.com/flnankai/HDLCP/issues
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3
+SystemRequirements: C++17

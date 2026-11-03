@@ -1,0 +1,9 @@
+*.o
+*.so
+*.dll
+*.Rcheck/
+*.tar.gz
+*.zip
+.Rhistory
+.RData
+results/
